@@ -136,7 +136,7 @@ func main() {
 
 			fmt.Printf("Downloaded %v bytes\n", filesizeDownloaded)
 			fmt.Printf("Ending")
-			os.exit(0)
+			os.Exit(0)
 		}
 	}()
 

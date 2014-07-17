@@ -1,20 +1,18 @@
-package main 
+package main
 
 import (
-	"net/http"
-	"fmt"
-	"io/ioutil"
-	"io"
-	"os"
-	"encoding/json"
-	//"bufio"
-	"strconv"
-	"flag"
-	//"github.com/davecgh/go-spew/spew"
-	"encoding/hex"
 	"crypto/sha1"
-	"path/filepath"
+	"encoding/hex"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
 )
 
 const API_URL = "http://api.ios.icj.me/firmwares.json"
@@ -31,24 +29,24 @@ type Firmware struct {
 }
 
 type IndividualiTunes struct {
-	Version   string `json:"version"`
-	URL       string `json:"url"`
-	SixtyFourBitURL  string `json:"64biturl"`
-	Date      string `json:"datefound"`
+	Version         string `json:"version"`
+	URL             string `json:"url"`
+	SixtyFourBitURL string `json:"64biturl"`
+	Date            string `json:"datefound"`
 }
 
 type Device struct {
-	Name        string `json:"name"`
-	BoardConfig string `json:"BoardConfig"`
-	Platform    string `json:"Platform"`
-	CPID        string `json:"cpid"`
-	BDID        string `json:"bdid"`
+	Name        string      `json:"name"`
+	BoardConfig string      `json:"BoardConfig"`
+	Platform    string      `json:"Platform"`
+	CPID        string      `json:"cpid"`
+	BDID        string      `json:"bdid"`
 	Firmwares   []*Firmware `json:"firmwares"`
 }
 
 type APIJSON struct {
-	Devices    map[string]*Device `json:"devices"`
-	ITunes    map[string][]*IndividualiTunes `json:"itunes"`
+	Devices map[string]*Device             `json:"devices"`
+	ITunes  map[string][]*IndividualiTunes `json:"itunes"`
 }
 
 func GetFirmwaresJSON() (parsed *APIJSON, err error) {
@@ -95,14 +93,12 @@ func DownloadIndividualFirmware(url string, filename string) (err error) {
 		return err
 	}
 
-
 	resp, err := http.Get(url)
 	defer resp.Body.Close()
 
 	if err != nil {
 		return err
 	}
-
 
 	_, err = io.Copy(out, resp.Body)
 
@@ -111,6 +107,7 @@ func DownloadIndividualFirmware(url string, filename string) (err error) {
 	return err
 }
 
+// args!
 var justCheck bool
 var noCheck bool
 var downloadDirectory string
@@ -128,16 +125,18 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
-	result, _ := GetFirmwaresJSON();
+	result, _ := GetFirmwaresJSON()
 
 	// total size downloaded
 	var filesizeDownloaded int64 = 0
 
-
-	go func(){
+	go func() {
 		for _ = range c {
+			fmt.Println()
+
 			fmt.Printf("Downloaded %v bytes\n", filesizeDownloaded)
 			fmt.Printf("Ending")
+			os.exit(0)
 		}
 	}()
 
@@ -157,7 +156,7 @@ func main() {
 				if err != nil {
 					fmt.Println(err)
 				} else {
-					if(!noCheck) {
+					if !noCheck {
 						fileOK, _ := VerifyFile(firmware.Filename, firmware.SHA1)
 
 						fmt.Printf("file is ok? %t\n", fileOK)
@@ -172,7 +171,7 @@ func main() {
 				if justCheck {
 					fmt.Print("\tfile is ok? ")
 					fileOK, _ := VerifyFile(firmware.Filename, firmware.SHA1)
-					fmt.Printf("%t\n", fileOK)	
+					fmt.Printf("%t\n", fileOK)
 				}
 			}
 		}

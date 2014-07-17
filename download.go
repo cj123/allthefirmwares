@@ -105,13 +105,36 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 	}
 
 	resp, err := http.Get(url)
-	defer resp.Body.Close()
-
 	if err != nil {
 		return "", err
 	}
 
-	_, err = io.Copy(mw, resp.Body)
+	defer resp.Body.Close()
+
+	doneCh := make(chan struct{})
+	go func() {
+		size := resp.ContentLength
+		downloaded := int64(0)
+		buf := make([]byte, 128*1024)
+		lp := 0
+		for {
+			if n, err := resp.Body.Read(buf); err == nil {
+				mw.Write(buf[:n])
+				downloaded += int64(n)
+				filesizeDownloaded += int64(n)
+				pct := int((downloaded * 100) / size)
+				if pct >= lp+5 {
+					fmt.Printf("%d%%...", pct)
+					lp = pct
+				}
+			} else {
+				break
+			}
+		}
+		fmt.Printf("\n")
+		doneCh <- struct{}{}
+	}()
+	<-doneCh
 
 	fmt.Println("Done!")
 
@@ -121,6 +144,8 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 // args!
 var justCheck bool
 var downloadDirectory string
+
+var filesizeDownloaded int64
 
 func init() {
 	// parse the flags
@@ -136,15 +161,12 @@ func main() {
 
 	result, _ := GetFirmwaresJSON()
 
-	// total size downloaded
-	var filesizeDownloaded int64 = 0
-
 	go func() {
 		for _ = range c {
 			fmt.Println()
 
 			fmt.Printf("Downloaded %v bytes\n", filesizeDownloaded)
-			fmt.Printf("Ending")
+			fmt.Printf("Exiting\n")
 			os.Exit(0)
 		}
 	}()

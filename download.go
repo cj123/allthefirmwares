@@ -71,51 +71,60 @@ func GetFirmwaresJSON() (parsed *APIJSON, err error) {
 
 // generate a SHA1 of the file, then compare it to a known one
 func VerifyFile(filename string, sha1sum string) (result bool, err error) {
-	b, err := ioutil.ReadFile(filepath.Join(downloadDirectory, filename))
+	path := filepath.Join(downloadDirectory, filename)
+	file, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+
+	defer file.Close()
 
 	h := sha1.New()
-
-	h.Write(b)
+	_, err = io.Copy(h, file)
+	if err != nil {
+		return false, err
+	}
 
 	bs := h.Sum(nil)
 
-	return sha1sum == hex.EncodeToString(bs), err
+	return sha1sum == hex.EncodeToString(bs), nil
 }
 
-func DownloadIndividualFirmware(url string, filename string) (err error) {
+func DownloadIndividualFirmware(url string, filename string) (sha1sum string, err error) {
 
 	fmt.Print("Downloading " + filename + " to " + filepath.Join(downloadDirectory, filename) + "... ")
 
 	out, err := os.Create(filepath.Join(downloadDirectory, filename))
 	defer out.Close()
 
+	h := sha1.New()
+	mw := io.MultiWriter(out, h)
+
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	resp, err := http.Get(url)
 	defer resp.Body.Close()
 
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	_, err = io.Copy(out, resp.Body)
+	_, err = io.Copy(mw, resp.Body)
 
 	fmt.Println("Done!")
 
-	return err
+	return hex.EncodeToString(h.Sum(nil)), err
 }
 
 // args!
 var justCheck bool
-var noCheck bool
 var downloadDirectory string
 
 func init() {
 	// parse the flags
 	flag.BoolVar(&justCheck, "c", false, "just check the integrity of the currently downloaded files")
-	flag.BoolVar(&noCheck, "z", false, "don't check files after they have been downloaded (faster)")
 	flag.StringVar(&downloadDirectory, "d", "./", "the location to save/check IPSW files")
 	flag.Parse()
 }
@@ -151,16 +160,13 @@ func main() {
 			if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) && !justCheck {
 
 				fmt.Println("needs downloading ")
-				err = DownloadIndividualFirmware(firmware.URL, firmware.Filename)
+				shasum, err := DownloadIndividualFirmware(firmware.URL, firmware.Filename)
 
 				if err != nil {
 					fmt.Println(err)
 				} else {
-					if !noCheck {
-						fileOK, _ := VerifyFile(firmware.Filename, firmware.SHA1)
-
-						fmt.Printf("file is ok? %t\n", fileOK)
-					}
+					fileOK := shasum == firmware.SHA1
+					fmt.Printf("file is ok? %t\n", fileOK)
 
 					size, _ := strconv.ParseInt(firmware.Size, 0, 0)
 					filesizeDownloaded += size

@@ -13,6 +13,8 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+
+	"github.com/dustin/go-humanize"
 )
 
 const API_URL = "http://api.ios.icj.me/firmwares.json"
@@ -92,7 +94,7 @@ func VerifyFile(filename string, sha1sum string) (result bool, err error) {
 
 func DownloadIndividualFirmware(url string, filename string) (sha1sum string, err error) {
 
-	fmt.Print("Downloading " + filename + " to " + filepath.Join(downloadDirectory, filename) + "... ")
+	fmt.Print("Downloading to " + filepath.Join(downloadDirectory, filename) + "... ")
 
 	out, err := os.Create(filepath.Join(downloadDirectory, filename))
 	defer out.Close()
@@ -116,27 +118,25 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 		size := resp.ContentLength
 		downloaded := int64(0)
 		buf := make([]byte, 128*1024)
-		lp := 0
+
 		for {
-			if n, err := resp.Body.Read(buf); err == nil {
+			if n, _ := resp.Body.Read(buf); n > 0 {
 				mw.Write(buf[:n])
 				downloaded += int64(n)
 				filesizeDownloaded += int64(n)
 				pct := int((downloaded * 100) / size)
-				if pct >= lp+5 {
-					fmt.Printf("%d%%...", pct)
-					lp = pct
-				}
+
+				fmt.Printf("\rDownloading to " + filepath.Join(downloadDirectory, filename) + "... %d%%", pct)
 			} else {
 				break
 			}
 		}
-		fmt.Printf("\n")
+
 		doneCh <- struct{}{}
 	}()
 	<-doneCh
 
-	fmt.Println("Done!")
+	fmt.Print(" Done! ")
 
 	return hex.EncodeToString(h.Sum(nil)), err
 }
@@ -171,6 +171,23 @@ func main() {
 		}
 	}()
 
+	var totalFirmwareCount int
+	var totalFirmwareSize uint64
+	var totalDeviceCount int
+
+	for _, info := range result.Devices {
+		totalDeviceCount++
+		for _, firmware := range info.Firmwares {
+			if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) {
+				totalFirmwareCount++
+				thisSize, _ := strconv.ParseUint(firmware.Size, 0, 0)
+				totalFirmwareSize += thisSize
+			}
+		}
+	}
+
+	fmt.Printf("Downloading %v IPSW files for %v devices (%v)\n", totalFirmwareCount, totalDeviceCount, humanize.Bytes(totalFirmwareSize))
+
 	for identifier, deviceinfo := range result.Devices {
 
 		fmt.Println("------------------")
@@ -188,7 +205,7 @@ func main() {
 					fmt.Println(err)
 				} else {
 					fileOK := shasum == firmware.SHA1
-					fmt.Printf("file is ok? %t\n", fileOK)
+					fmt.Printf("file ok: %t\n", fileOK)
 
 					size, _ := strconv.ParseInt(firmware.Size, 0, 0)
 					filesizeDownloaded += size

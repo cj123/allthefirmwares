@@ -13,8 +13,10 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"runtime"
 
 	"github.com/dustin/go-humanize"
+	"code.google.com/p/go.crypto/ssh/terminal"
 )
 
 const API_URL = "http://api.ios.icj.me/firmwares.json"
@@ -49,6 +51,41 @@ type Device struct {
 type APIJSON struct {
 	Devices map[string]*Device             `json:"devices"`
 	ITunes  map[string][]*IndividualiTunes `json:"itunes"`
+}
+
+func ProgressBar(progress int) (progressBar string) {
+
+	var width int
+
+	if runtime.GOOS == "windows" {
+		// we'll just assume it's standard terminal width
+		width = 80
+	} else {
+		width, _, _ = terminal.GetSize(0)
+	}
+
+	// take off 14 for extra info (e.g. percentage)
+	width = width / 2 - 14
+
+	// get the current progress
+	currentProgress := (progress * width) / 100
+
+
+	progressBar = "["
+
+	for i := 0; i < currentProgress; i++ {
+		progressBar = progressBar + "="
+	}
+
+	progressBar = progressBar + ">"
+
+	for i := width; i > currentProgress; i-- {
+		progressBar = progressBar + " "
+	}
+
+	progressBar = progressBar + "] " + fmt.Sprintf("%3d", progress) + "%%"
+
+	return progressBar
 }
 
 func GetFirmwaresJSON() (parsed *APIJSON, err error) {
@@ -94,7 +131,9 @@ func VerifyFile(filename string, sha1sum string) (result bool, err error) {
 
 func DownloadIndividualFirmware(url string, filename string) (sha1sum string, err error) {
 
-	fmt.Print("Downloading to " + filepath.Join(downloadDirectory, filename) + "... ")
+	//fmt.Println("Downloading to " + filepath.Join(downloadDirectory, filename) + "... ")
+
+	downloadCount++
 
 	out, err := os.Create(filepath.Join(downloadDirectory, filename))
 	defer out.Close()
@@ -126,7 +165,7 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 				filesizeDownloaded += int64(n)
 				pct := int((downloaded * 100) / size)
 
-				fmt.Printf("\rDownloading to " + filepath.Join(downloadDirectory, filename) + "... %d%%", pct)
+				fmt.Printf("\r(%d/%d) " + ProgressBar(pct) + " " + ProgressBar(int((filesizeDownloaded / totalFirmwareSize) * 100)), downloadCount, totalFirmwareCount)
 			} else {
 				break
 			}
@@ -136,25 +175,29 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 	}()
 	<-doneCh
 
-	fmt.Print(" Done! ")
-
 	return hex.EncodeToString(h.Sum(nil)), err
 }
 
 // args!
 var justCheck bool
 var downloadDirectory string
-
 var filesizeDownloaded int64
+var totalFirmwareCount int
+var totalFirmwareSize int64
+var totalDeviceCount int
+var downloadCount int
 
 func init() {
 	// parse the flags
 	flag.BoolVar(&justCheck, "c", false, "just check the integrity of the currently downloaded files")
 	flag.StringVar(&downloadDirectory, "d", "./", "the location to save/check IPSW files")
+
 	flag.Parse()
 }
 
 func main() {
+
+
 	// so we can catch interrupt
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -171,22 +214,18 @@ func main() {
 		}
 	}()
 
-	var totalFirmwareCount int
-	var totalFirmwareSize uint64
-	var totalDeviceCount int
-
 	for _, info := range result.Devices {
 		totalDeviceCount++
 		for _, firmware := range info.Firmwares {
 			if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) {
 				totalFirmwareCount++
 				thisSize, _ := strconv.ParseUint(firmware.Size, 0, 0)
-				totalFirmwareSize += thisSize
+				totalFirmwareSize += int64(thisSize)
 			}
 		}
 	}
 
-	fmt.Printf("Downloading %v IPSW files for %v devices (%v)\n", totalFirmwareCount, totalDeviceCount, humanize.Bytes(totalFirmwareSize))
+	fmt.Printf("Downloading %v IPSW files for %v devices (%v)\n", totalFirmwareCount, totalDeviceCount, humanize.Bytes(uint64(totalFirmwareSize)))
 
 	for identifier, deviceinfo := range result.Devices {
 
@@ -204,8 +243,13 @@ func main() {
 				if err != nil {
 					fmt.Println(err)
 				} else {
-					fileOK := shasum == firmware.SHA1
-					fmt.Printf("file ok: %t\n", fileOK)
+
+					// not sure if these will display properly
+					if shasum == firmware.SHA1 {
+						fmt.Println("✔")
+					} else {
+						fmt.Println("✘")
+					}
 
 					size, _ := strconv.ParseInt(firmware.Size, 0, 0)
 					filesizeDownloaded += size

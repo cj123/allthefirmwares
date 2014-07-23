@@ -164,8 +164,9 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 				downloaded += int64(n)
 				filesizeDownloaded += int64(n)
 				pct := int((downloaded * 100) / size)
+				overallPct := int((downloaded * 100) / totalFirmwareSize)
 
-				fmt.Printf("\r(%d/%d) " + ProgressBar(pct) + " " + ProgressBar(int((filesizeDownloaded / totalFirmwareSize) * 100)), downloadCount, totalFirmwareCount)
+				fmt.Printf("\r(%d/%d) " + ProgressBar(pct) + " " + ProgressBar(overallPct), downloadCount, totalFirmwareCount)
 			} else {
 				break
 			}
@@ -180,18 +181,15 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 
 // args!
 var justCheck bool
-var downloadDirectory string
-var filesizeDownloaded int64
-var totalFirmwareCount int
-var totalFirmwareSize int64
-var totalDeviceCount int
-var downloadCount int
+var downloadDirectory, currentIPSW, onlyDevice string
+var filesizeDownloaded, totalFirmwareSize int64
+var totalFirmwareCount, totalDeviceCount, downloadCount int
 
 func init() {
 	// parse the flags
 	flag.BoolVar(&justCheck, "c", false, "just check the integrity of the currently downloaded files")
 	flag.StringVar(&downloadDirectory, "d", "./", "the location to save/check IPSW files")
-
+	flag.StringVar(&onlyDevice, "i", "", "only download for the specified device")
 	flag.Parse()
 }
 
@@ -202,19 +200,24 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
-	result, _ := GetFirmwaresJSON()
-
 	go func() {
 		for _ = range c {
 			fmt.Println()
 
 			fmt.Printf("Downloaded %v bytes\n", filesizeDownloaded)
+
 			fmt.Printf("Exiting\n")
 			os.Exit(0)
 		}
 	}()
 
-	for _, info := range result.Devices {
+	result, _ := GetFirmwaresJSON()
+
+	for identifier, info := range result.Devices {
+		if onlyDevice != "" && identifier != onlyDevice {
+			continue
+		}
+
 		totalDeviceCount++
 		for _, firmware := range info.Firmwares {
 			if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) {
@@ -225,9 +228,13 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Downloading %v IPSW files for %v devices (%v)\n", totalFirmwareCount, totalDeviceCount, humanize.Bytes(uint64(totalFirmwareSize)))
+	fmt.Printf("Downloading %v IPSW files for %v device(s) (%v)\n", totalFirmwareCount, totalDeviceCount, humanize.Bytes(uint64(totalFirmwareSize)))
 
 	for identifier, deviceinfo := range result.Devices {
+
+		if onlyDevice != "" && identifier != onlyDevice {
+			continue
+		}
 
 		fmt.Println("------------------")
 		fmt.Println(identifier)

@@ -64,8 +64,8 @@ func ProgressBar(progress int) (progressBar string) {
 		width, _, _ = terminal.GetSize(0)
 	}
 
-	// take off 14 for extra info (e.g. percentage)
-	width = width / 2 - 14
+	// take off 20 for extra info (e.g. percentage)
+	width = width - 20
 
 	// get the current progress
 	currentProgress := (progress * width) / 100
@@ -164,9 +164,8 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 				downloaded += int64(n)
 				filesizeDownloaded += int64(n)
 				pct := int((downloaded * 100) / size)
-				overallPct := int((downloaded * 100) / totalFirmwareSize)
 
-				fmt.Printf("\r(%d/%d) " + ProgressBar(pct) + " " + ProgressBar(overallPct), downloadCount, totalFirmwareCount)
+				fmt.Printf("\r(%d/%d) " + ProgressBar(pct) + " ", downloadCount, totalFirmwareCount)
 			} else {
 				break
 			}
@@ -206,7 +205,6 @@ func main() {
 
 			fmt.Printf("Downloaded %v bytes\n", filesizeDownloaded)
 
-			fmt.Printf("Exiting\n")
 			os.Exit(0)
 		}
 	}()
@@ -236,9 +234,8 @@ func main() {
 			continue
 		}
 
-		fmt.Println("------------------")
-		fmt.Println(identifier)
-		fmt.Println("------------------")
+		fmt.Printf("\nDevice: %s (%s) - %v firmwares\n", deviceinfo.Name, identifier, len(deviceinfo.Firmwares))
+		fmt.Println("------------------------------------------------------\n")
 
 		for _, firmware := range deviceinfo.Firmwares {
 			fmt.Print("Checking if " + firmware.Filename + " exists... ")
@@ -262,13 +259,19 @@ func main() {
 					filesizeDownloaded += size
 				}
 
-			} else {
+			} else if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); !os.IsNotExist(err) && justCheck {
 				fmt.Println("true")
-				if justCheck {
-					fmt.Print("\tfile is ok? ")
-					fileOK, _ := VerifyFile(firmware.Filename, firmware.SHA1)
-					fmt.Printf("%t\n", fileOK)
+
+				fmt.Print("\tchecking file... ")
+				
+				if fileOK, _ := VerifyFile(firmware.Filename, firmware.SHA1); fileOK {
+					fmt.Println("✔ ok")
+				} else {
+					fmt.Println("✘ bad")
 				}
+
+			} else {
+				fmt.Println("false")
 			}
 		}
 	}

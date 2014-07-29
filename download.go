@@ -179,7 +179,7 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 }
 
 // args!
-var justCheck bool
+var justCheck, redownloadIfBroken bool
 var downloadDirectory, currentIPSW, onlyDevice string
 var filesizeDownloaded, totalFirmwareSize int64
 var totalFirmwareCount, totalDeviceCount, downloadCount int
@@ -187,6 +187,7 @@ var totalFirmwareCount, totalDeviceCount, downloadCount int
 func init() {
 	// parse the flags
 	flag.BoolVar(&justCheck, "c", false, "just check the integrity of the currently downloaded files")
+	flag.BoolVar(&redownloadIfBroken, "r", false, "redownload the file if it fails verification (w/ -c)")
 	flag.StringVar(&downloadDirectory, "d", "./", "the location to save/check IPSW files")
 	flag.StringVar(&onlyDevice, "i", "", "only download for the specified device")
 	flag.Parse()
@@ -254,9 +255,6 @@ func main() {
 					} else {
 						fmt.Println("✘")
 					}
-
-					size, _ := strconv.ParseInt(firmware.Size, 0, 0)
-					filesizeDownloaded += size
 				}
 
 			} else if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); !os.IsNotExist(err) && justCheck {
@@ -268,6 +266,20 @@ func main() {
 					fmt.Println("✔ ok")
 				} else {
 					fmt.Println("✘ bad")
+					if redownloadIfBroken {
+						fmt.Println("Redownloading...")
+						shasum, err := DownloadIndividualFirmware(firmware.URL, firmware.Filename)
+
+						if err != nil {
+							fmt.Println(err)
+						}
+
+						if shasum == firmware.SHA1 {
+							fmt.Println("✔")
+						} else {
+							fmt.Println("✘")
+						}
+					}
 				}
 
 			} else {

@@ -279,7 +279,7 @@ func main() {
 		for _, firmware := range deviceinfo.Firmwares {
 
 
-			firmware.ParseDownloadDir(identifier, true)
+			firmware.ParseDownloadDir(identifier, !justCheck)
 
 			fmt.Print("Checking if " + firmware.Filename + " exists... ")
 			if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) && !justCheck {

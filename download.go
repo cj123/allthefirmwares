@@ -13,25 +13,25 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"runtime"
+	"strconv"
 	"text/template"
 
-	"github.com/dustin/go-humanize"
 	"code.google.com/p/go.crypto/ssh/terminal"
+	"github.com/dustin/go-humanize"
 )
 
 const API_URL = "http://api.ios.icj.me/firmwares.json"
 
 type Firmware struct {
-	Version  string `json:"version"`
-	BuildID  string `json:"buildid"`
-	URL      string `json:"url"`
-	Date     string `json:"date"`
-	Size     string `json:"size"`
-	MD5      string `json:"md5sum"`
-	SHA1     string `json:"sha1sum"`
-	Filename string `json:"filename"`
+	Version    string `json:"version"`
+	BuildID    string `json:"buildid"`
+	URL        string `json:"url"`
+	Date       string `json:"date"`
+	Size       string `json:"size"`
+	MD5        string `json:"md5sum"`
+	SHA1       string `json:"sha1sum"`
+	Filename   string `json:"filename"`
 	Identifier string
 }
 
@@ -56,6 +56,22 @@ type APIJSON struct {
 	ITunes  map[string][]*IndividualiTunes `json:"itunes"`
 }
 
+// args!
+var justCheck, redownloadIfBroken bool
+var downloadDirectory, downloadDirectoryTempl, currentIPSW, onlyDevice string
+var filesizeDownloaded, totalFirmwareSize int64
+var totalFirmwareCount, totalDeviceCount, downloadCount int
+
+func init() {
+	// parse the flags
+	flag.BoolVar(&justCheck, "c", false, "just check the integrity of the currently downloaded files")
+	flag.BoolVar(&redownloadIfBroken, "r", false, "redownload the file if it fails verification (w/ -c)")
+	flag.StringVar(&downloadDirectoryTempl, "d", "./", "the location to save/check IPSW files.\n\t Can include templates e.g. {{.Identifier}} or {{.BuildID}}")
+	flag.StringVar(&onlyDevice, "i", "", "only download for the specified device")
+	flag.Parse()
+}
+
+// returns a progress bar fitting the terminal width given a progress percentage
 func ProgressBar(progress int) (progressBar string) {
 
 	var width int
@@ -67,30 +83,33 @@ func ProgressBar(progress int) (progressBar string) {
 		width, _, _ = terminal.GetSize(0)
 	}
 
-	// take off 20 for extra info (e.g. percentage)
-	width = width - 20
+	// take off 26 for extra info (e.g. percentage)
+	width = width - 26
 
 	// get the current progress
 	currentProgress := (progress * width) / 100
 
-
 	progressBar = "["
 
+	// fill up progress
 	for i := 0; i < currentProgress; i++ {
 		progressBar = progressBar + "="
 	}
 
 	progressBar = progressBar + ">"
 
+	// fill the rest with spaces
 	for i := width; i > currentProgress; i-- {
 		progressBar = progressBar + " "
 	}
 
+	// end the progressbar
 	progressBar = progressBar + "] " + fmt.Sprintf("%3d", progress) + "%%"
 
 	return progressBar
 }
 
+// get the JSON from API_URL and parse it
 func GetFirmwaresJSON() (parsed *APIJSON, err error) {
 	response, err := http.Get(API_URL)
 	if err != nil {
@@ -112,8 +131,8 @@ func GetFirmwaresJSON() (parsed *APIJSON, err error) {
 }
 
 // generate a SHA1 of the file, then compare it to a known one
-func VerifyFile(filename string, sha1sum string) (result bool, err error) {
-	path := filepath.Join(downloadDirectory, filename)
+func (fw *Firmware) VerifyFile() (result bool, err error) {
+	path := filepath.Join(downloadDirectory, fw.Filename)
 	file, err := os.Open(path)
 	if err != nil {
 		return false, err
@@ -129,16 +148,17 @@ func VerifyFile(filename string, sha1sum string) (result bool, err error) {
 
 	bs := h.Sum(nil)
 
-	return sha1sum == hex.EncodeToString(bs), nil
+	return fw.SHA1 == hex.EncodeToString(bs), nil
 }
 
-func DownloadIndividualFirmware(url string, filename string) (sha1sum string, err error) {
+// Download the given firmware
+func (fw *Firmware) Download() (sha1sum string, err error) {
 
 	//fmt.Println("Downloading to " + filepath.Join(downloadDirectory, filename) + "... ")
 
 	downloadCount++
 
-	out, err := os.Create(filepath.Join(downloadDirectory, filename))
+	out, err := os.Create(filepath.Join(downloadDirectory, fw.Filename))
 	defer out.Close()
 
 	h := sha1.New()
@@ -148,7 +168,7 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 		return "", err
 	}
 
-	resp, err := http.Get(url)
+	resp, err := http.Get(fw.URL)
 	if err != nil {
 		return "", err
 	}
@@ -168,7 +188,7 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 				filesizeDownloaded += int64(n)
 				pct := int((downloaded * 100) / size)
 
-				fmt.Printf("\r(%d/%d) " + ProgressBar(pct) + " ", downloadCount, totalFirmwareCount)
+				fmt.Printf("\r(%d/%d) "+ProgressBar(pct)+" of %4v", downloadCount, totalFirmwareCount, humanize.Bytes(uint64(size)))
 			} else {
 				break
 			}
@@ -181,21 +201,7 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 	return hex.EncodeToString(h.Sum(nil)), err
 }
 
-// args!
-var justCheck, redownloadIfBroken bool
-var downloadDirectory, downloadDirectoryTempl, currentIPSW, onlyDevice string
-var filesizeDownloaded, totalFirmwareSize int64
-var totalFirmwareCount, totalDeviceCount, downloadCount int
-
-func init() {
-	// parse the flags
-	flag.BoolVar(&justCheck, "c", false, "just check the integrity of the currently downloaded files")
-	flag.BoolVar(&redownloadIfBroken, "r", false, "redownload the file if it fails verification (w/ -c)")
-	flag.StringVar(&downloadDirectoryTempl, "d", "./", "the location to save/check IPSW files.\n\t Can include templates e.g. {{.Identifier}} or {{.BuildID}}")
-	flag.StringVar(&onlyDevice, "i", "", "only download for the specified device")
-	flag.Parse()
-}
-
+// Read the directory to download from the args, parsing templates if they exist
 func (fw *Firmware) ParseDownloadDir(identifier string, makeDir bool) {
 
 	directoryString := new(bytes.Buffer)
@@ -225,7 +231,6 @@ func (fw *Firmware) ParseDownloadDir(identifier string, makeDir bool) {
 
 func main() {
 
-
 	// so we can catch interrupt
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -234,7 +239,7 @@ func main() {
 		for _ = range c {
 			fmt.Println()
 
-			fmt.Printf("Downloaded %v bytes\n", filesizeDownloaded)
+			fmt.Printf("Downloaded %v\n", humanize.Bytes(uint64(filesizeDownloaded)))
 
 			os.Exit(0)
 		}
@@ -242,7 +247,7 @@ func main() {
 
 	result, _ := GetFirmwaresJSON()
 
-	if ! justCheck {
+	if !justCheck {
 
 		// calculate the size of the download
 
@@ -264,7 +269,7 @@ func main() {
 			}
 		}
 
-		fmt.Printf("Downloading %v IPSW files for %v device(s) (%v)\n", totalFirmwareCount, totalDeviceCount, humanize.Bytes(uint64(totalFirmwareSize)))	
+		fmt.Printf("Downloading %v IPSW files for %v device(s) (%v)\n", totalFirmwareCount, totalDeviceCount, humanize.Bytes(uint64(totalFirmwareSize)))
 	}
 
 	for identifier, deviceinfo := range result.Devices {
@@ -278,14 +283,13 @@ func main() {
 
 		for _, firmware := range deviceinfo.Firmwares {
 
-
 			firmware.ParseDownloadDir(identifier, !justCheck)
 
 			fmt.Print("Checking if " + firmware.Filename + " exists... ")
 			if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) && !justCheck {
 
-				fmt.Println("needs downloading ")
-				shasum, err := DownloadIndividualFirmware(firmware.URL, firmware.Filename)
+				fmt.Println("needs downloading")
+				shasum, err := firmware.Download()
 
 				if err != nil {
 					fmt.Println(err)
@@ -303,14 +307,14 @@ func main() {
 				fmt.Println("true")
 
 				fmt.Print("\tchecking file... ")
-				
-				if fileOK, _ := VerifyFile(firmware.Filename, firmware.SHA1); fileOK {
+
+				if fileOK, _ := firmware.VerifyFile(); fileOK {
 					fmt.Println("✔ ok")
 				} else {
 					fmt.Println("✘ bad")
 					if redownloadIfBroken {
 						fmt.Println("Redownloading...")
-						shasum, err := DownloadIndividualFirmware(firmware.URL, firmware.Filename)
+						shasum, err := firmware.Download()
 
 						if err != nil {
 							fmt.Println(err)
@@ -330,5 +334,5 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Downloaded %v bytes\n", filesizeDownloaded)
+	fmt.Printf("Downloaded %v\n", humanize.Bytes(uint64(filesizeDownloaded)))
 }

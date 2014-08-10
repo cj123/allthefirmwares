@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"runtime"
+	"text/template"
 
 	"github.com/dustin/go-humanize"
 	"code.google.com/p/go.crypto/ssh/terminal"
@@ -30,6 +32,7 @@ type Firmware struct {
 	MD5      string `json:"md5sum"`
 	SHA1     string `json:"sha1sum"`
 	Filename string `json:"filename"`
+	Identifier string
 }
 
 type IndividualiTunes struct {
@@ -180,7 +183,7 @@ func DownloadIndividualFirmware(url string, filename string) (sha1sum string, er
 
 // args!
 var justCheck, redownloadIfBroken bool
-var downloadDirectory, currentIPSW, onlyDevice string
+var downloadDirectory, downloadDirectoryTempl, currentIPSW, onlyDevice string
 var filesizeDownloaded, totalFirmwareSize int64
 var totalFirmwareCount, totalDeviceCount, downloadCount int
 
@@ -188,9 +191,36 @@ func init() {
 	// parse the flags
 	flag.BoolVar(&justCheck, "c", false, "just check the integrity of the currently downloaded files")
 	flag.BoolVar(&redownloadIfBroken, "r", false, "redownload the file if it fails verification (w/ -c)")
-	flag.StringVar(&downloadDirectory, "d", "./", "the location to save/check IPSW files")
+	flag.StringVar(&downloadDirectoryTempl, "d", "./", "the location to save/check IPSW files.\n\t Can include templates e.g. {{.Identifier}} or {{.BuildID}}")
 	flag.StringVar(&onlyDevice, "i", "", "only download for the specified device")
 	flag.Parse()
+}
+
+func (fw *Firmware) ParseDownloadDir(identifier string, makeDir bool) {
+
+	directoryString := new(bytes.Buffer)
+
+	tmpl, err := template.New("firmware").Parse(downloadDirectoryTempl)
+
+	// add the identifier, for simplicity
+	fw.Identifier = identifier
+
+	if err != nil {
+		panic(err)
+	}
+
+	err = tmpl.Execute(directoryString, fw)
+
+	if err != nil {
+		panic(err)
+	}
+
+	downloadDirectory = directoryString.String()
+
+	// make the directory
+	if makeDir {
+		os.MkdirAll(downloadDirectory, 0700)
+	}
 }
 
 func main() {
@@ -212,22 +242,30 @@ func main() {
 
 	result, _ := GetFirmwaresJSON()
 
-	for identifier, info := range result.Devices {
-		if onlyDevice != "" && identifier != onlyDevice {
-			continue
-		}
+	if ! justCheck {
 
-		totalDeviceCount++
-		for _, firmware := range info.Firmwares {
-			if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) {
-				totalFirmwareCount++
-				thisSize, _ := strconv.ParseUint(firmware.Size, 0, 0)
-				totalFirmwareSize += int64(thisSize)
+		// calculate the size of the download
+
+		for identifier, info := range result.Devices {
+			if onlyDevice != "" && identifier != onlyDevice {
+				continue
+			}
+
+			totalDeviceCount++
+			for _, firmware := range info.Firmwares {
+
+				firmware.ParseDownloadDir(identifier, false)
+
+				if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) {
+					totalFirmwareCount++
+					thisSize, _ := strconv.ParseUint(firmware.Size, 0, 0)
+					totalFirmwareSize += int64(thisSize)
+				}
 			}
 		}
-	}
 
-	fmt.Printf("Downloading %v IPSW files for %v device(s) (%v)\n", totalFirmwareCount, totalDeviceCount, humanize.Bytes(uint64(totalFirmwareSize)))
+		fmt.Printf("Downloading %v IPSW files for %v device(s) (%v)\n", totalFirmwareCount, totalDeviceCount, humanize.Bytes(uint64(totalFirmwareSize)))	
+	}
 
 	for identifier, deviceinfo := range result.Devices {
 
@@ -239,6 +277,10 @@ func main() {
 		fmt.Println("------------------------------------------------------\n")
 
 		for _, firmware := range deviceinfo.Firmwares {
+
+
+			firmware.ParseDownloadDir(identifier, true)
+
 			fmt.Print("Checking if " + firmware.Filename + " exists... ")
 			if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) && !justCheck {
 

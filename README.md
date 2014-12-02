@@ -1,11 +1,12 @@
 Download All Firmwares
 ======================
+A utility to download all (or specific sets of) Apple's iOS firmware using the [IPSW Downloads API](https://api.ipsw.me/)
 
 ![Download all the firmwares!](https://dl.dropboxusercontent.com/u/38032597/content/blogs/BsyVbxlCIAAiBtC.jpg)
 
 Usage
 
-```
+```bash
 $ go run download.go --help
 Usage of :./download:
   -c=false: just check the integrity of the currently downloaded files

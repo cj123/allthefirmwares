@@ -61,7 +61,7 @@ type APIJSON struct {
 }
 
 // args!
-var justCheck, redownloadIfBroken bool
+var justCheck, redownloadIfBroken, downloadSigned bool
 var downloadDirectory, downloadDirectoryTempl, currentIPSW, onlyDevice string
 var filesizeDownloaded, totalFirmwareSize int64
 var totalFirmwareCount, totalDeviceCount, downloadCount int
@@ -70,6 +70,7 @@ func init() {
 	// parse the flags
 	flag.BoolVar(&justCheck, "c", false, "just check the integrity of the currently downloaded files")
 	flag.BoolVar(&redownloadIfBroken, "r", false, "redownload the file if it fails verification (w/ -c)")
+	flag.BoolVar(&downloadSigned, "s", false, "only download signed firmwares")
 	flag.StringVar(&downloadDirectoryTempl, "d", "./", "the location to save/check IPSW files.\n\t Can include templates e.g. {{.Identifier}} or {{.BuildID}}")
 	flag.StringVar(&onlyDevice, "i", "", "only download for the specified device")
 	flag.Parse()
@@ -263,6 +264,11 @@ func main() {
 			totalDeviceCount++
 			for _, firmware := range info.Firmwares {
 
+				// don't download unsigned firmwares if we just want signed ones
+				if(downloadSigned && !firmware.Signed) {
+					continue
+				}
+
 				firmware.ParseDownloadDir(identifier, false)
 
 				if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) {
@@ -287,6 +293,11 @@ func main() {
 		for _, firmware := range deviceinfo.Firmwares {
 
 			firmware.ParseDownloadDir(identifier, !justCheck)
+
+			// don't download unsigned firmwares if we just want signed ones
+			if(downloadSigned && !firmware.Signed) {
+				continue
+			}
 
 			fmt.Print("Checking if " + firmware.Filename + " exists... ")
 			if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) && !justCheck {

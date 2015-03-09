@@ -2,6 +2,9 @@
 allthefirmwares
 download
 
+# ipsws
+*.ipsw
+
 # Created by https://www.gitignore.io
 
 ### Go ###

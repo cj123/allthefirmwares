@@ -2,6 +2,10 @@
 allthefirmwares
 download
 
+# build stuff
+build
+*.zip
+
 # ipsws
 *.ipsw
 

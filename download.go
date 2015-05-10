@@ -46,7 +46,6 @@ type Firmware struct {
 	Filename    string `json:"filename"`
 }
 
-
 type iTunes struct {
 	Platform        string `json:"platform,omitempty"`
 	Version         string `json:"version"`
@@ -265,7 +264,7 @@ func main() {
 			for _, firmware := range info.Firmwares {
 
 				// don't download unsigned firmwares if we just want signed ones
-				if(downloadSigned && !firmware.Signed) {
+				if downloadSigned && !firmware.Signed {
 					continue
 				}
 
@@ -295,7 +294,7 @@ func main() {
 			firmware.ParseDownloadDir(identifier, !justCheck)
 
 			// don't download unsigned firmwares if we just want signed ones
-			if(downloadSigned && !firmware.Signed) {
+			if downloadSigned && !firmware.Signed {
 				continue
 			}
 

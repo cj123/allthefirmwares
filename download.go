@@ -14,50 +14,53 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"text/template"
 
 	"code.google.com/p/go.crypto/ssh/terminal"
 	"github.com/dustin/go-humanize"
 )
 
-const API_URL = "http://api.ios.icj.me/firmwares.json"
-
-type Firmware struct {
-	Version    string `json:"version"`
-	BuildID    string `json:"buildid"`
-	URL        string `json:"url"`
-	Date       string `json:"date"`
-	Size       string `json:"size"`
-	MD5        string `json:"md5sum"`
-	SHA1       string `json:"sha1sum"`
-	Filename   string `json:"filename"`
-	Identifier string
-}
-
-type IndividualiTunes struct {
-	Version         string `json:"version"`
-	URL             string `json:"url"`
-	SixtyFourBitURL string `json:"64biturl"`
-	Date            string `json:"datefound"`
-}
+const API_URL = "http://api.ipsw.me/v2.1/firmwares.json"
 
 type Device struct {
 	Name        string      `json:"name"`
 	BoardConfig string      `json:"BoardConfig"`
-	Platform    string      `json:"Platform"`
-	CPID        string      `json:"cpid"`
-	BDID        string      `json:"bdid"`
+	Platform    string      `json:"platform"`
+	CPID        int         `json:"cpid"`
+	BDID        int         `json:"bdid"`
 	Firmwares   []*Firmware `json:"firmwares"`
 }
 
+type Firmware struct {
+	Identifier  string `json:"identifier,omitempty"`
+	Version     string `json:"version"`
+	Device      string `json:"device,omitempty"`
+	BuildID     string `json:"buildid"`
+	SHA1        string `json:"sha1sum"`
+	MD5         string `json:"md5sum"`
+	Size        int64  `json:"size"`
+	ReleaseDate string `json:"releasedate,omitempty"`
+	UploadDate  string `json:"uploaddate"`
+	URL         string `json:"url"`
+	Signed      bool   `json:"signed"`
+	Filename    string `json:"filename"`
+}
+
+type iTunes struct {
+	Platform        string `json:"platform,omitempty"`
+	Version         string `json:"version"`
+	UploadDate      string `json:"uploaddate"`
+	URL             string `json:"url"`
+	SixtyFourBitURL string `json:"64biturl,omitempty"`
+	ReleaseDate     string `json:"releasedate,omitempty"`
+}
 type APIJSON struct {
-	Devices map[string]*Device             `json:"devices"`
-	ITunes  map[string][]*IndividualiTunes `json:"itunes"`
+	Devices map[string]*Device   `json:"devices"`
+	ITunes  map[string][]*iTunes `json:"iTunes"`
 }
 
 // args!
-var justCheck, redownloadIfBroken bool
+var justCheck, redownloadIfBroken, downloadSigned bool
 var downloadDirectory, downloadDirectoryTempl, currentIPSW, onlyDevice string
 var filesizeDownloaded, totalFirmwareSize int64
 var totalFirmwareCount, totalDeviceCount, downloadCount int
@@ -66,6 +69,7 @@ func init() {
 	// parse the flags
 	flag.BoolVar(&justCheck, "c", false, "just check the integrity of the currently downloaded files")
 	flag.BoolVar(&redownloadIfBroken, "r", false, "redownload the file if it fails verification (w/ -c)")
+	flag.BoolVar(&downloadSigned, "s", false, "only download signed firmwares")
 	flag.StringVar(&downloadDirectoryTempl, "d", "./", "the location to save/check IPSW files.\n\t Can include templates e.g. {{.Identifier}} or {{.BuildID}}")
 	flag.StringVar(&onlyDevice, "i", "", "only download for the specified device")
 	flag.Parse()
@@ -259,12 +263,16 @@ func main() {
 			totalDeviceCount++
 			for _, firmware := range info.Firmwares {
 
+				// don't download unsigned firmwares if we just want signed ones
+				if downloadSigned && !firmware.Signed {
+					continue
+				}
+
 				firmware.ParseDownloadDir(identifier, false)
 
 				if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) {
 					totalFirmwareCount++
-					thisSize, _ := strconv.ParseUint(firmware.Size, 0, 0)
-					totalFirmwareSize += int64(thisSize)
+					totalFirmwareSize += firmware.Size
 				}
 			}
 		}
@@ -284,6 +292,11 @@ func main() {
 		for _, firmware := range deviceinfo.Firmwares {
 
 			firmware.ParseDownloadDir(identifier, !justCheck)
+
+			// don't download unsigned firmwares if we just want signed ones
+			if downloadSigned && !firmware.Signed {
+				continue
+			}
 
 			fmt.Print("Checking if " + firmware.Filename + " exists... ")
 			if _, err := os.Stat(filepath.Join(downloadDirectory, firmware.Filename)); os.IsNotExist(err) && !justCheck {

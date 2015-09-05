@@ -6,11 +6,13 @@ Download All Firmwares
 Usage
 
 ```
-$ go run download.go --help
-Usage of :./download:
-  -c=false: just check the integrity of the currently downloaded files
-  -d="./": the location to save/check IPSW files.
-         Can include templates e.g. {{.Identifier}} or {{.BuildID}}
-  -i="": only download for the specified device
-  -r=false: redownload the file if it fails verification (w/ -c)
+$ ./allthefirmwares --help
+Usage of ./allthefirmwares:
+  -c	just check the integrity of the currently downloaded files
+  -d string
+    	the location to save/check IPSW files.
+	 Can include templates e.g. {{.Identifier}} or {{.BuildID}} (default "./")
+  -i string
+    	only download for the specified device
+  -r	redownload the file if it fails verification (w/ -c)
 ```

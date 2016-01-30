@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"text/template"
-
+	_ "crypto/sha512"
 	"code.google.com/p/go.crypto/ssh/terminal"
 	"github.com/dustin/go-humanize"
 )
@@ -249,7 +249,11 @@ func main() {
 		}
 	}()
 
-	result, _ := GetFirmwaresJSON()
+	result, err := GetFirmwaresJSON()
+
+	if err != nil {
+		panic(err)
+	}
 
 	if !justCheck {
 

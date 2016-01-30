@@ -20,7 +20,7 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
-const API_URL = "http://api.ipsw.me/v2.1/firmwares.json"
+const API_URL = "https://api.ipsw.me/v2.1/firmwares.json"
 
 type Device struct {
 	Name        string      `json:"name"`

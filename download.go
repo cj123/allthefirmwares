@@ -16,7 +16,7 @@ import (
 	"runtime"
 	"text/template"
 	_ "crypto/sha512"
-	"code.google.com/p/go.crypto/ssh/terminal"
+	"golang.org/x/crypto/ssh/terminal"
 	"github.com/dustin/go-humanize"
 )
 

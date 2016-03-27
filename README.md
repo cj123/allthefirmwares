@@ -16,4 +16,5 @@ Usage of ./allthefirmwares:
   -i string
     	only download for the specified device
   -r	redownload the file if it fails verification (w/ -c)
+  -s	only download signed firmwares
 ```

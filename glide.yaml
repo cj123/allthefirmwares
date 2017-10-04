@@ -1,8 +1,0 @@
-package: github.com/cj123/allthefirmwares
-import:
-- package: github.com/cheggaaa/pb
-  version: ^1.0.13
-- package: github.com/dustin/go-humanize
-- package: golang.org/x/crypto
-  subpackages:
-  - ssh/terminal

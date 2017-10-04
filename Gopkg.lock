@@ -8,6 +8,12 @@
   version = "v1.0.13"
 
 [[projects]]
+  name = "github.com/cj123/go-ipsw"
+  packages = ["api"]
+  revision = "54ce199d04576e76b840848ee070229810f77f2b"
+  version = "1.1.0"
+
+[[projects]]
   name = "github.com/dustin/go-humanize"
   packages = ["."]
   revision = "259d2a102b871d17f30e3cd9881a642961a1e486"
@@ -20,6 +26,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fbe76b2384b52a64ea5533019a6eec9b37649b24667f94a6f15ff3a23fa233d3"
+  inputs-digest = "50cc70e482360d5114a768ec004e4ac007f5881d61741086d1e6040f67315f48"
   solver-name = "gps-cdcl"
   solver-version = 1

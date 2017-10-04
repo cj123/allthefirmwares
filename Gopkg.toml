@@ -27,3 +27,7 @@
 
 [[constraint]]
   name = "github.com/dustin/go-humanize"
+
+[[constraint]]
+  name = "github.com/cj123/go-ipsw"
+  version = "1.1.0"

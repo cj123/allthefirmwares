@@ -17,10 +17,13 @@ import (
 	"text/template"
 
 	"github.com/cheggaaa/pb"
+	"github.com/cj123/go-ipsw/api"
 	"github.com/dustin/go-humanize"
 )
 
 var (
+	ipswClient = api.NewIPSWClient("https://api.ipsw.me/v3")
+
 	// flags
 	verifyIntegrity, reDownloadOnVerificationFailed, downloadSigned bool
 	downloadDirectoryTemplate, specifiedDevice                      string
@@ -54,7 +57,7 @@ func main() {
 		}
 	}()
 
-	body, err := getFirmwaresJSON()
+	body, err := ipswClient.All()
 
 	if err != nil {
 		log.Fatalf("Unable to retrieve firmware information, err: %s", err)
@@ -72,7 +75,7 @@ func main() {
 				continue
 			}
 
-			directory, err := parseDownloadDirectory(ipsw, identifier)
+			directory, err := parseDownloadDirectory(&ipsw, identifier)
 
 			if err != nil {
 				log.Printf("Unable to parse download directory, err: %s", err)
@@ -106,7 +109,7 @@ func main() {
 				continue
 			}
 
-			directory, err := parseDownloadDirectory(ipsw, identifier)
+			directory, err := parseDownloadDirectory(&ipsw, identifier)
 
 			if err != nil {
 				log.Printf("Unable to parse download directory, err: %s", err)
@@ -129,14 +132,14 @@ func main() {
 
 			if os.IsNotExist(err) && !verifyIntegrity {
 				for {
-					err := downloadWithProgressBar(ipsw, downloadPath)
+					err := downloadWithProgressBar(&ipsw, downloadPath)
 
 					if err == nil || !reDownloadOnVerificationFailed {
 						break
 					}
 				}
 			} else if err == nil && verifyIntegrity {
-				fileOK, err := verify(downloadPath, ipsw.SHA1)
+				fileOK, err := verify(downloadPath, ipsw.SHA1Sum)
 
 				if err != nil {
 					log.Printf("Error verifying: %s, err: %s", ipsw.Filename, err)
@@ -151,7 +154,7 @@ func main() {
 
 				if reDownloadOnVerificationFailed {
 					for {
-						err := downloadWithProgressBar(ipsw, downloadPath)
+						err := downloadWithProgressBar(&ipsw, downloadPath)
 
 						if err == nil {
 							break
@@ -165,7 +168,7 @@ func main() {
 	}
 }
 
-func downloadWithProgressBar(ipsw *Firmware, downloadPath string) error {
+func downloadWithProgressBar(ipsw *api.Firmware, downloadPath string) error {
 	log.Printf("Downloading %s (%s)", ipsw.Filename, humanize.Bytes(ipsw.Size))
 
 	bar := pb.New(int(ipsw.Size)).SetUnits(pb.U_BYTES)
@@ -180,15 +183,15 @@ func downloadWithProgressBar(ipsw *Firmware, downloadPath string) error {
 	if err != nil {
 		log.Printf("Error while downloading %s, err: %s", ipsw.Filename, err)
 		return err
-	} else if checksum != ipsw.SHA1 {
-		log.Printf("File: %s failed checksum (wanted: %s, got: %s)", ipsw.Filename, ipsw.SHA1, checksum)
+	} else if checksum != ipsw.SHA1Sum {
+		log.Printf("File: %s failed checksum (wanted: %s, got: %s)", ipsw.Filename, ipsw.SHA1Sum, checksum)
 		return errors.New("checksum incorrect")
 	}
 
 	return nil
 }
 
-func parseDownloadDirectory(fw *Firmware, identifier string) (string, error) {
+func parseDownloadDirectory(fw *api.Firmware, identifier string) (string, error) {
 	directoryBuffer := new(bytes.Buffer)
 
 	t, err := template.New("firmware").Parse(downloadDirectoryTemplate)

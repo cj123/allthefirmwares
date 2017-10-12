@@ -10,8 +10,8 @@
 [[projects]]
   name = "github.com/cj123/go-ipsw"
   packages = ["api"]
-  revision = "54ce199d04576e76b840848ee070229810f77f2b"
-  version = "1.1.0"
+  revision = "acdcb6f4f855f5ccd66ce3ee6f0730d7b07ae542"
+  version = "1.1.1"
 
 [[projects]]
   name = "github.com/dustin/go-humanize"

@@ -4,24 +4,38 @@
 [[projects]]
   name = "github.com/cheggaaa/pb"
   packages = ["."]
-  revision = "b6229822fa186496fcbf34111237e7a9693c6971"
-  version = "v1.0.13"
+  revision = "43d64de27312b32812ca7e994fa0bb03ccf08fdf"
+  version = "v1.0.20"
 
 [[projects]]
   name = "github.com/cj123/go-ipsw"
   packages = ["api"]
-  revision = "acdcb6f4f855f5ccd66ce3ee6f0730d7b07ae542"
-  version = "1.1.1"
+  revision = "f6529e766c671b095705e5a857c0db7c8e7c6c64"
+  version = "1.4.3"
 
 [[projects]]
+  branch = "master"
   name = "github.com/dustin/go-humanize"
   packages = ["."]
-  revision = "259d2a102b871d17f30e3cd9881a642961a1e486"
+  revision = "bb3d318650d48840a39aa21a027c6630e198e626"
 
 [[projects]]
   name = "github.com/mattn/go-runewidth"
   packages = ["."]
-  revision = "14207d285c6c197daabb5c9793d63e7af9ab2d50"
+  revision = "9e777a8366cce605130a531d2cd6363d07ad7317"
+  version = "v0.0.2"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = ["unix"]
+  revision = "fff93fa7cd278d84afc205751523809c464168ab"
+
+[[projects]]
+  name = "gopkg.in/guregu/null.v3"
+  packages = ["."]
+  revision = "e81d6d8d57747b34d7c5fe0d20ebf57692f04ea9"
+  version = "v3.3.0"
 
 [solve-meta]
   analyzer-name = "dep"

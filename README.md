@@ -2,7 +2,7 @@ Download All Firmwares
 ======================
 A utility to download all (or specific sets of) Apple's iOS firmware using the [IPSW Downloads API](https://api.ipsw.me/)
 
-![Download all the firmwares!](https://dl.dropboxusercontent.com/u/38032597/content/blogs/BsyVbxlCIAAiBtC.jpg)
+You can find releases of allthefirmwares [on the releases page](https://github.com/cj123/allthefirmwares/releases).
 
 Usage
 

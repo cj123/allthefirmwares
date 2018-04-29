@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	ipswClient = api.NewIPSWClient("https://api.ipsw.me/v3")
+	ipswClient = api.NewIPSWClient("https://api.ipsw.me/v4", nil)
 
 	// flags
 	verifyIntegrity, reDownloadOnVerificationFailed, downloadSigned bool
@@ -57,36 +57,52 @@ func main() {
 		}
 	}()
 
-	body, err := ipswClient.All()
+	log.Printf("Gathering IPSW information...")
+
+	devices, err := ipswClient.Devices(false)
 
 	if err != nil {
 		log.Fatalf("Unable to retrieve firmware information, err: %s", err)
 	}
 
-	for identifier, device := range body.Devices {
-		if specifiedDevice != "" && identifier != specifiedDevice {
+	firmwaresToDownload := make(map[api.BaseDevice][]api.Firmware)
+
+	for _, device := range devices {
+		if specifiedDevice != "" && device.Identifier != specifiedDevice {
 			continue
+		}
+
+		deviceInformation, err := ipswClient.DeviceInformation(device.Identifier)
+
+		if err != nil {
+			log.Printf("Could not get firmwares for device: %s, err: %s", device.Identifier, err)
 		}
 
 		totalDeviceCount++
 
-		for _, ipsw := range device.Firmwares {
+		for _, ipsw := range deviceInformation.Firmwares {
 			if downloadSigned && !ipsw.Signed {
 				continue
 			}
 
-			directory, err := parseDownloadDirectory(&ipsw, identifier)
+			directory, err := parseDownloadDirectory(&ipsw, device.Identifier)
 
 			if err != nil {
 				log.Printf("Unable to parse download directory, err: %s", err)
 				continue
 			}
 
-			downloadPath := filepath.Join(directory, ipsw.Filename)
+			downloadPath := filepath.Join(directory, filepath.Base(ipsw.URL))
 
 			if _, err := os.Stat(downloadPath); os.IsNotExist(err) {
 				totalFirmwareCount++
-				totalFirmwareSize += ipsw.Size
+				totalFirmwareSize += ipsw.Filesize
+
+				if firmwaresToDownload[device] == nil {
+					firmwaresToDownload[device] = make([]api.Firmware, 0)
+				}
+
+				firmwaresToDownload[device] = append(firmwaresToDownload[device], ipsw)
 			}
 		}
 	}
@@ -95,21 +111,19 @@ func main() {
 		log.Printf("Downloading: %v IPSW files for %v device(s) (%v)", totalFirmwareCount, totalDeviceCount, humanize.Bytes(totalFirmwareSize))
 	}
 
-	for identifier, device := range body.Devices {
-		if specifiedDevice != "" && identifier != specifiedDevice {
-			continue
-		}
-
+	for device, firmwares := range firmwaresToDownload {
 		if !verifyIntegrity {
-			log.Printf("Downloading %d firmwares for %s", len(device.Firmwares), device.Name)
+			log.Printf("Downloading %d firmwares for %s", len(firmwares), device.Name)
 		}
 
-		for _, ipsw := range device.Firmwares {
+		for _, ipsw := range firmwares {
 			if downloadSigned && !ipsw.Signed {
 				continue
 			}
 
-			directory, err := parseDownloadDirectory(&ipsw, identifier)
+			filename := filepath.Base(ipsw.URL)
+
+			directory, err := parseDownloadDirectory(&ipsw, device.Identifier)
 
 			if err != nil {
 				log.Printf("Unable to parse download directory, err: %s", err)
@@ -126,7 +140,7 @@ func main() {
 				}
 			}
 
-			downloadPath := filepath.Join(directory, ipsw.Filename)
+			downloadPath := filepath.Join(directory, filename)
 
 			_, err = os.Stat(downloadPath)
 
@@ -142,15 +156,15 @@ func main() {
 				fileOK, err := verify(downloadPath, ipsw.SHA1Sum)
 
 				if err != nil {
-					log.Printf("Error verifying: %s, err: %s", ipsw.Filename, err)
+					log.Printf("Error verifying: %s, err: %s", filename, err)
 				}
 
 				if fileOK {
-					log.Printf("%s verified successfully", ipsw.Filename)
+					log.Printf("%s verified successfully", filename)
 					continue
 				}
 
-				log.Printf("%s did not verify successfully", ipsw.Filename)
+				log.Printf("%s did not verify successfully", filename)
 
 				if reDownloadOnVerificationFailed {
 					for {
@@ -169,9 +183,11 @@ func main() {
 }
 
 func downloadWithProgressBar(ipsw *api.Firmware, downloadPath string) error {
-	log.Printf("Downloading %s (%s)", ipsw.Filename, humanize.Bytes(ipsw.Size))
+	filename := filepath.Base(ipsw.URL)
 
-	bar := pb.New(int(ipsw.Size)).SetUnits(pb.U_BYTES)
+	log.Printf("Downloading %s (%s)", filename, humanize.Bytes(ipsw.Filesize))
+
+	bar := pb.New(int(ipsw.Filesize)).SetUnits(pb.U_BYTES)
 	bar.Start()
 
 	checksum, err := download(ipsw.URL, downloadPath, bar, func(n, downloaded int, total int64) {
@@ -181,10 +197,10 @@ func downloadWithProgressBar(ipsw *api.Firmware, downloadPath string) error {
 	bar.Finish()
 
 	if err != nil {
-		log.Printf("Error while downloading %s, err: %s", ipsw.Filename, err)
+		log.Printf("Error while downloading %s, err: %s", filename, err)
 		return err
 	} else if checksum != ipsw.SHA1Sum {
-		log.Printf("File: %s failed checksum (wanted: %s, got: %s)", ipsw.Filename, ipsw.SHA1Sum, checksum)
+		log.Printf("File: %s failed checksum (wanted: %s, got: %s)", filename, ipsw.SHA1Sum, checksum)
 		return errors.New("checksum incorrect")
 	}
 

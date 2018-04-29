@@ -10,8 +10,8 @@
 [[projects]]
   name = "github.com/cj123/go-ipsw"
   packages = ["api"]
-  revision = "f6529e766c671b095705e5a857c0db7c8e7c6c64"
-  version = "1.4.3"
+  revision = "405f1391592414c8ca6f1af37955e8ade4cf5178"
+  version = "4.0.0"
 
 [[projects]]
   branch = "master"
@@ -40,6 +40,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "50cc70e482360d5114a768ec004e4ac007f5881d61741086d1e6040f67315f48"
+  inputs-digest = "d47381adf415a51b49766ca7aed9b896dc5882e6e64466771338a561e870129c"
   solver-name = "gps-cdcl"
   solver-version = 1

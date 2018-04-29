@@ -1,0 +1,14 @@
+workspace:
+  base: /go
+  path: src/github.com/cj123/go-ipsw
+
+pipeline:
+  test:
+    image: golang:1.8
+    environment:
+    - GOPATH=/go
+    commands:
+    - go get -u github.com/golang/dep/cmd/dep
+    - dep ensure -v
+    - go test -cover $(go list ./... | grep -v vendor)
+    - go build

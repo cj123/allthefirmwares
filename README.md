@@ -9,12 +9,13 @@ Usage
 ```
 $ ./allthefirmwares --help
 Usage of ./allthefirmwares:
-  -c	just check the integrity of the currently downloaded files
+  -c	just check the integrity of the currently downloaded files (if any)
   -d string
     	the location to save/check IPSW files.
-	 Can include templates e.g. {{.Identifier}} or {{.BuildID}} (default "./")
+    		Can include templates e.g. {{.Identifier}} or {{.BuildID}} (default "./")
   -i string
     	only download for the specified device
+  -l	only download the latest firmware for the specified devices
   -r	redownload the file if it fails verification (w/ -c)
   -s	only download signed firmwares
 ```

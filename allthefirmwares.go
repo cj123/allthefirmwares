@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"text/template"
 
 	"github.com/cheggaaa/pb"
@@ -25,8 +26,8 @@ var (
 	ipswClient = api.NewIPSWClient("https://api.ipsw.me/v4", nil)
 
 	// flags
-	verifyIntegrity, reDownloadOnVerificationFailed, downloadSigned bool
-	downloadDirectoryTemplate, specifiedDevice                      string
+	verifyIntegrity, reDownloadOnVerificationFailed, downloadSigned, downloadLatest bool
+	downloadDirectoryTemplate, specifiedDevice                                      string
 
 	// counters
 	downloadedSize, totalFirmwareSize    uint64
@@ -34,6 +35,7 @@ var (
 )
 
 func init() {
+	flag.BoolVar(&downloadLatest, "l", false, "only download the latest firmware for the specified devices")
 	flag.BoolVar(&verifyIntegrity, "c", false, "just check the integrity of the currently downloaded files (if any)")
 	flag.BoolVar(&reDownloadOnVerificationFailed, "r", false, "redownload the file if it fails verification (w/ -c)")
 	flag.BoolVar(&downloadSigned, "s", false, "only download signed firmwares")
@@ -80,8 +82,12 @@ func main() {
 
 		totalDeviceCount++
 
-		for _, ipsw := range deviceInformation.Firmwares {
-			if downloadSigned && !ipsw.Signed {
+		sort.Slice(deviceInformation.Firmwares, func(i int, j int) bool {
+			return deviceInformation.Firmwares[i].UploadDate.Time.After(deviceInformation.Firmwares[j].UploadDate.Time)
+		})
+
+		for index, ipsw := range deviceInformation.Firmwares {
+			if (downloadSigned && !ipsw.Signed) || (index > 0 && downloadLatest) {
 				continue
 			}
 

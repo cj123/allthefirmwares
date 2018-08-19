@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"text/template"
 
@@ -24,6 +25,8 @@ import (
 
 var (
 	ipswClient = api.NewIPSWClient("https://api.ipsw.me/v4", nil)
+
+	filter, filterValue string
 
 	// flags
 	verifyIntegrity, reDownloadOnVerificationFailed, downloadSigned, downloadLatest bool
@@ -41,6 +44,8 @@ func init() {
 	flag.BoolVar(&downloadSigned, "s", false, "only download signed firmwares")
 	flag.StringVar(&downloadDirectoryTemplate, "d", "./", "the location to save/check IPSW files.\n\tCan include templates e.g. {{.Identifier}} or {{.BuildID}}")
 	flag.StringVar(&specifiedDevice, "i", "", "only download for the specified device")
+	flag.StringVar(&filter, "filter", "", "filter by a specific struct field")
+	flag.StringVar(&filterValue, "filterValue", "", "the value to filter by (used with -filter)")
 	flag.Parse()
 }
 
@@ -88,6 +93,10 @@ func main() {
 
 		for index, ipsw := range deviceInformation.Firmwares {
 			if (downloadSigned && !ipsw.Signed) || (index > 0 && downloadLatest) {
+				continue
+			}
+
+			if filter != "" && filterValue != "" && !passesFilter(ipsw, filter, filterValue) {
 				continue
 			}
 
@@ -301,4 +310,33 @@ func download(url string, location string, writer io.Writer, callback func(n, do
 	}
 
 	return hex.EncodeToString(h.Sum(nil)), err
+}
+
+func passesFilter(firmware api.Firmware, filterName, filterValue string) bool {
+	field := reflect.Indirect(reflect.ValueOf(firmware)).FieldByName(filterName)
+
+	str := ""
+
+	switch t := field.Interface().(type) {
+	case uint, uint8, uint16, uint32, uint64, int, int8, int16, int32, int64:
+		str = fmt.Sprintf("%d", t)
+
+	case string:
+		str = t
+
+	case fmt.Stringer:
+		str = t.String()
+
+	case bool:
+		if t {
+			str = "true"
+		} else {
+			str = "false"
+		}
+
+	default:
+		return false
+	}
+
+	return filterValue == str
 }

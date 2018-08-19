@@ -13,6 +13,10 @@ Usage of ./allthefirmwares:
   -d string
     	the location to save/check IPSW files.
     		Can include templates e.g. {{.Identifier}} or {{.BuildID}} (default "./")
+  -filter string
+    	filter by a specific struct field
+  -filterValue string
+    	the value to filter by (used with -filter)
   -i string
     	only download for the specified device
   -l	only download the latest firmware for the specified devices

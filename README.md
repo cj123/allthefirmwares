@@ -12,7 +12,10 @@ Usage of ./allthefirmwares:
   -c	just check the integrity of the currently downloaded files (if any)
   -d string
     	the location to save/check IPSW files.
-    		Can include templates e.g. {{.Identifier}} or {{.BuildID}} (default "./")
+    		Can include templates e.g. {{.Identifier}} or {{.Name}} or {{.BuildID}}
+
+    		For example try -d "{{.Name}}/{{.Version}}"
+    	 (default "./")
   -filter string
     	filter by a specific struct field
   -filterValue string

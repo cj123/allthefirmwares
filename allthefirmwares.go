@@ -42,7 +42,7 @@ func init() {
 	flag.BoolVar(&verifyIntegrity, "c", false, "just check the integrity of the currently downloaded files (if any)")
 	flag.BoolVar(&reDownloadOnVerificationFailed, "r", false, "redownload the file if it fails verification (w/ -c)")
 	flag.BoolVar(&downloadSigned, "s", false, "only download signed firmwares")
-	flag.StringVar(&downloadDirectoryTemplate, "d", "./", "the location to save/check IPSW files.\n\tCan include templates e.g. {{.Identifier}} or {{.BuildID}}")
+	flag.StringVar(&downloadDirectoryTemplate, "d", "./", "the location to save/check IPSW files.\n\tCan include templates e.g. {{.Identifier}} or {{.Name}} or {{.BuildID}}\n\n\tFor example try -d \"{{.Name}}/{{.Version}}\"\n")
 	flag.StringVar(&specifiedDevice, "i", "", "only download for the specified device")
 	flag.StringVar(&filter, "filter", "", "filter by a specific struct field")
 	flag.StringVar(&filterValue, "filterValue", "", "the value to filter by (used with -filter)")
@@ -100,7 +100,7 @@ func main() {
 				continue
 			}
 
-			directory, err := parseDownloadDirectory(&ipsw, device.Identifier)
+			directory, err := parseDownloadDirectory(&ipsw, &device)
 
 			if err != nil {
 				log.Printf("Unable to parse download directory, err: %s", err)
@@ -138,7 +138,7 @@ func main() {
 
 			filename := filepath.Base(ipsw.URL)
 
-			directory, err := parseDownloadDirectory(&ipsw, device.Identifier)
+			directory, err := parseDownloadDirectory(&ipsw, &device)
 
 			if err != nil {
 				log.Printf("Unable to parse download directory, err: %s", err)
@@ -222,7 +222,13 @@ func downloadWithProgressBar(ipsw *api.Firmware, downloadPath string) error {
 	return nil
 }
 
-func parseDownloadDirectory(fw *api.Firmware, identifier string) (string, error) {
+type fwDeviceCombo struct {
+	Identifier string
+	*api.BaseDevice
+	*api.Firmware
+}
+
+func parseDownloadDirectory(fw *api.Firmware, device *api.BaseDevice) (string, error) {
 	directoryBuffer := new(bytes.Buffer)
 
 	t, err := template.New("firmware").Parse(downloadDirectoryTemplate)
@@ -231,10 +237,7 @@ func parseDownloadDirectory(fw *api.Firmware, identifier string) (string, error)
 		return "", err
 	}
 
-	// add the identifier, for simplicity
-	fw.Identifier = identifier
-
-	err = t.Execute(directoryBuffer, fw)
+	err = t.Execute(directoryBuffer, &fwDeviceCombo{device.Identifier, device, fw})
 
 	if err != nil {
 		return "", nil

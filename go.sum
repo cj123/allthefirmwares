@@ -1,0 +1,12 @@
+github.com/cheggaaa/pb v1.0.20 h1:4aoKkmVfdXLV8FLTl3o1T79KTGtIQXX+Fwlo/a2azqI=
+github.com/cheggaaa/pb v1.0.20/go.mod h1:pQciLPpbU0oxA0h+VJYYLxO+XeDQb5pZijXscXHm81s=
+github.com/cj123/go-ipsw v0.0.0-20180310204258-405f13915924 h1:XJQKxNaS8qDtGyts6NFNVOpU+fl/9NVw/Y97OUUE27M=
+github.com/cj123/go-ipsw v0.0.0-20180310204258-405f13915924/go.mod h1:dC3t13Rs4qGAsPjOSWCgE8PDlTUAS66c/xnrGnKR1ZA=
+github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4 h1:qk/FSDDxo05wdJH28W+p5yivv7LuLYLRXPPD8KQCtZs=
+github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
+github.com/mattn/go-runewidth v0.0.2 h1:UnlwIPBGaTZfPQ6T1IGzPI0EkYAQmT9fAEJ/poFC63o=
+github.com/mattn/go-runewidth v0.0.2/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
+golang.org/x/sys v0.0.0-20180115085844-fff93fa7cd27 h1:2eRo0KjjtlqyGRczC03D310MeTk4ou0riPh/bEjOb2U=
+golang.org/x/sys v0.0.0-20180115085844-fff93fa7cd27/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+gopkg.in/guregu/null.v3 v3.3.0 h1:8j3ggqq+NgKt/O7mbFVUFKUMWN+l1AmT5jQmJ6nPh2c=
+gopkg.in/guregu/null.v3 v3.3.0/go.mod h1:E4tX2Qe3h7QdL+uZ3a0vqvYwKQsRSQKM5V4YltdgH9Y=
